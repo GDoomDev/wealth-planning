@@ -25,14 +25,14 @@ try {
   // Check if config is filled (basic check)
   if (firebaseConfig.apiKey) {
     if (!getApps().length) {
-        const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        // Força o uso do banco (default) que o erro dizia não encontrar
-        db = getFirestore(app); 
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      // Força o uso do banco (default) que o erro dizia não encontrar
+      db = getFirestore(app);
     } else {
-        const app = getApp();
-        auth = getAuth(app);
-        db = getFirestore(app);
+      const app = getApp();
+      auth = getAuth(app);
+      db = getFirestore(app);
     }
     isInitialized = true;
   } else {
@@ -64,53 +64,53 @@ export const logoutUser = async () => {
 // --- Data Sync Methods ---
 
 export const saveUserData = async (userId: string, key: string, data: any) => {
-    if (!db) return;
-    try {
-        // Firestore TRAVA se receber 'undefined'. 
-        // JSON.stringify remove chaves com valores undefined automaticamente.
-        const safeData = data === undefined ? null : JSON.parse(JSON.stringify(data));
-        
-        // REMOVIDO { merge: true } para permitir exclusão total de chaves em objetos de estado (como o budget)
-        await setDoc(doc(db, "users", userId, "data", key), { value: safeData });
-    } catch (e: any) {
-        console.error("Error saving to cloud", e);
-        throw e;
-    }
+  if (!db) return;
+  try {
+    // Firestore TRAVA se receber 'undefined'. 
+    // JSON.stringify remove chaves com valores undefined automaticamente.
+    const safeData = data === undefined ? null : JSON.parse(JSON.stringify(data));
+
+    // REMOVIDO { merge: true } para permitir exclusão total de chaves em objetos de estado (como o budget)
+    await setDoc(doc(db, "users", userId, "data", key), { value: safeData });
+  } catch (e: any) {
+    console.error("Error saving to cloud", e);
+    throw e;
+  }
 };
 
 export const loadUserData = async (userId: string, key: string) => {
-    if (!db) return null;
-    try {
-        const snap = await getDoc(doc(db, "users", userId, "data", key));
-        if (snap.exists()) {
-            return snap.data().value;
-        }
-    } catch (e) {
-        console.error("Error loading from cloud", e);
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, "users", userId, "data", key));
+    if (snap.exists()) {
+      return snap.data().value;
     }
-    return null;
+  } catch (e) {
+    console.error("Error loading from cloud", e);
+  }
+  return null;
 };
 
 // Real-time listener
 export const subscribeToUserData = (
-    userId: string, 
-    key: string, 
-    onUpdate: (data: any) => void,
-    onError?: (error: any) => void
+  userId: string,
+  key: string,
+  onUpdate: (data: any) => void,
+  onError?: (error: any) => void
 ) => {
-    if (!db) return () => {};
-    
-    const unsubscribe = onSnapshot(doc(db, "users", userId, "data", key), (doc) => {
-        if (doc.exists()) {
-            onUpdate(doc.data().value);
-        } else {
-            // Document doesn't exist yet (new user), return null/undefined
-            onUpdate(undefined);
-        }
-    }, (error) => {
-        console.error(`Error subscribing to ${key}:`, error);
-        if (onError) onError(error);
-    });
+  if (!db) return () => { };
 
-    return unsubscribe;
+  const unsubscribe = onSnapshot(doc(db, "users", userId, "data", key), (doc) => {
+    if (doc.exists()) {
+      onUpdate(doc.data().value);
+    } else {
+      // Document doesn't exist yet (new user), return null/undefined
+      onUpdate(undefined);
+    }
+  }, (error) => {
+    console.error(`Error subscribing to ${key}:`, error);
+    if (onError) onError(error);
+  });
+
+  return unsubscribe;
 };
