@@ -1,7 +1,9 @@
 
+
 import React, { useState, useCallback, useMemo } from 'react';
-import { Transaction, PaymentMethod, Subscription } from '../types';
+import { Transaction, PaymentMethod, Subscription, UserPreferences } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { getTransactionEffectiveDate } from '../utils/financeUtils';
 import CurrencyInput from './CurrencyInput';
 import { ArrowDownRight, ArrowUpRight, Trash2, Edit2, User, Calendar, Tag, CreditCard, Save, X, Info, Sparkles } from 'lucide-react';
 
@@ -13,9 +15,10 @@ interface Props {
   paymentMethods: PaymentMethod[];
   selectedMonth: string;
   subscriptions: Subscription[];
+  preferences: UserPreferences;
 }
 
-const TransactionList: React.FC<Props> = ({ transactions, onDelete, onUpdate, categories, paymentMethods, selectedMonth, subscriptions }) => {
+const TransactionList: React.FC<Props> = ({ transactions, onDelete, onUpdate, categories, paymentMethods, selectedMonth, subscriptions, preferences }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Transaction | null>(null);
   const [updateSiblings, setUpdateSiblings] = useState(false);
@@ -24,10 +27,13 @@ const TransactionList: React.FC<Props> = ({ transactions, onDelete, onUpdate, ca
     return dateStr.slice(0, 7);
   }, []);
 
-  // Filtra as transações reais pelo mês da data informada
+  // Filtra as transações reais pelo mês da data efetiva (considerando preferências)
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => getFinancialMonth(t.date) === selectedMonth);
-  }, [transactions, getFinancialMonth, selectedMonth]);
+    return transactions.filter(t => {
+      const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
+      return getFinancialMonth(effectiveDate) === selectedMonth;
+    });
+  }, [transactions, getFinancialMonth, selectedMonth, paymentMethods, preferences]);
 
   // Projeta assinaturas se o mês for atual ou futuro
   const virtualSubscriptions = useMemo(() => {
