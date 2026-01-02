@@ -40,44 +40,44 @@ const ConfigurationTab: React.FC<Props> = ({ preferences, onUpdatePreferences })
                             <button
                                 onClick={() => handleLogicChange('transaction_date')}
                                 className={`flex flex-col gap-3 p-4 rounded-xl border-2 text-left transition-all ${preferences.creditCardLogic === 'transaction_date'
-                                        ? 'border-indigo-600 bg-indigo-50/50'
-                                        : 'border-slate-100 hover:border-slate-200 bg-white'
+                                    ? 'border-indigo-600 bg-indigo-50/50'
+                                    : 'border-slate-100 hover:border-slate-200 bg-white'
                                     }`}
                             >
                                 <div className="flex items-center justify-between w-full">
                                     <span className={`font-bold ${preferences.creditCardLogic === 'transaction_date' ? 'text-indigo-700' : 'text-slate-700'}`}>
-                                        Data da Compra
+                                        Mês de Fechamento
                                     </span>
                                     {preferences.creditCardLogic === 'transaction_date' && (
                                         <div className="w-4 h-4 rounded-full bg-indigo-600 border-4 border-indigo-100" />
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-500 leading-relaxed">
-                                    As despesas entram no mês exato em que a compra foi realizada.
+                                    Despesas aparecem no mês em que a fatura fecha (previsibilidade).
                                     <br />
-                                    <span className="opacity-70 mt-1 block italic">Ex: Compra dia 28/jan entra em Janeiro.</span>
+                                    <span className="opacity-70 mt-1 block italic">Ex: Compra dia 28/dez, fatura fecha dia 25/jan → Aparece em Janeiro.</span>
                                 </p>
                             </button>
 
                             <button
                                 onClick={() => handleLogicChange('closing_day')}
                                 className={`flex flex-col gap-3 p-4 rounded-xl border-2 text-left transition-all ${preferences.creditCardLogic === 'closing_day'
-                                        ? 'border-indigo-600 bg-indigo-50/50'
-                                        : 'border-slate-100 hover:border-slate-200 bg-white'
+                                    ? 'border-indigo-600 bg-indigo-50/50'
+                                    : 'border-slate-100 hover:border-slate-200 bg-white'
                                     }`}
                             >
                                 <div className="flex items-center justify-between w-full">
                                     <span className={`font-bold ${preferences.creditCardLogic === 'closing_day' ? 'text-indigo-700' : 'text-slate-700'}`}>
-                                        Vencimento da Fatura
+                                        Mês de Vencimento
                                     </span>
                                     {preferences.creditCardLogic === 'closing_day' && (
                                         <div className="w-4 h-4 rounded-full bg-indigo-600 border-4 border-indigo-100" />
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-500 leading-relaxed">
-                                    As despesas respeitam o fechamento da fatura e entram no mês do vencimento.
+                                    Despesas aparecem no mês em que a fatura vence (quando o dinheiro sai).
                                     <br />
-                                    <span className="opacity-70 mt-1 block italic">Ex: Compra dia 28/jan (fatura fecha dia 25) entra em Fevereiro.</span>
+                                    <span className="opacity-70 mt-1 block italic">Ex: Compra dia 28/dez, fatura vence dia 5/fev → Aparece em Fevereiro.</span>
                                 </p>
                             </button>
                         </div>
