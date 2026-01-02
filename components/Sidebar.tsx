@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
     LayoutDashboard,
     Settings,
+    Settings2,
     CreditCard,
     Repeat,
     Layers,
@@ -16,12 +17,13 @@ import {
     Wallet
 } from 'lucide-react';
 
+
 interface SidebarProps {
     activeTab: string;
     setActiveTab: (tab: any) => void;
-    user: any;
-    onLogout: () => void;
-    onLogin: () => void;
+    user?: any;
+    onLogout?: () => void;
+    onLogin?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout, onLogin }) => {
@@ -30,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'settings', label: 'Orçamento', icon: Settings },
+        { id: 'configuration', label: 'Configurações', icon: Settings2 },
         { id: 'payment_methods', label: 'Meios de Pagamento', icon: CreditCard },
         { id: 'subscriptions', label: 'Assinaturas', icon: Repeat },
         { id: 'installments', label: 'Parcelas', icon: Layers },
@@ -37,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         { id: 'investments', label: 'Investimentos', icon: TrendingUp },
         { id: 'reimbursements', label: 'Reembolsos', icon: Users },
     ];
+
 
     return (
         <div

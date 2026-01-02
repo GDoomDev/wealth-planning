@@ -106,7 +106,8 @@ const App: React.FC = () => {
       totalInvestment,
       balance: totalIncome - totalExpense - totalInvestment
     };
-  }, [transactions, getFinancialMonth, selectedMonth, subscriptions]);
+  }, [transactions, getFinancialMonth, selectedMonth, subscriptions, paymentMethods, preferences]);
+
 
   const isFutureView = useMemo(() => {
     const now = new Date().toISOString().slice(0, 7);
@@ -248,9 +249,9 @@ const App: React.FC = () => {
         subscribeToUserData(u.uid, 'totalSalary', (data) => data !== undefined && setTotalSalary(Number(data)));
         subscribeToUserData(u.uid, 'planningProfiles', (data) => data && setPlanningProfiles(data));
         subscribeToUserData(u.uid, 'investmentGoals', (data) => data && setInvestmentGoals(data));
-        subscribeToUserData(u.uid, 'investmentGoals', (data) => data && setInvestmentGoals(data));
         subscribeToUserData(u.uid, 'subscriptions', (data) => data && setSubscriptions(data));
         subscribeToUserData(u.uid, 'preferences', (data) => data && setPreferences(data));
+
       } else { loadLocalData(); }
     });
     return () => unsubAuth();
@@ -270,11 +271,11 @@ const App: React.FC = () => {
       if (s) setTotalSalary(Number(s));
       if (p) setPlanningProfiles(JSON.parse(p));
       if (i) setInvestmentGoals(JSON.parse(i));
-      if (i) setInvestmentGoals(JSON.parse(i));
       if (sub) setSubscriptions(JSON.parse(sub));
       if (pm) setPaymentMethods(JSON.parse(pm));
       const prefs = localStorage.getItem('preferences');
       if (prefs) setPreferences(JSON.parse(prefs));
+
     } catch (e) { }
   };
 
