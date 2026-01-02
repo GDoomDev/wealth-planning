@@ -16,15 +16,15 @@ export interface Transaction {
   amount: number;
   category: string;
   paymentMethod: string; // Nome ou ID do Meio de Pagamento
-  cardName?: string; 
+  cardName?: string;
   type: TransactionType;
   description: string;
   date: string; // ISO Date string (YYYY-MM-DD)
-  isReimbursable?: boolean; 
-  isReimbursed?: boolean;   
-  debtorName?: string; 
-  relatedTransactionId?: string; 
-  groupId?: string; 
+  isReimbursable?: boolean;
+  isReimbursed?: boolean;
+  debtorName?: string;
+  relatedTransactionId?: string;
+  groupId?: string;
 }
 
 export interface Subscription {
@@ -54,13 +54,13 @@ export interface PlanningProfile {
 
 export interface InvestmentGoal {
   id: string;
-  name: string; 
-  targetAmount: number; 
-  currentAmount: number; 
-  category: string; 
-  deadline?: string; 
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  category: string;
+  deadline?: string;
   color?: string;
-  linkedTransactionIds?: string[]; 
+  linkedTransactionIds?: string[];
 }
 
 export interface FinancialSummary {
@@ -84,4 +84,8 @@ export interface FirebaseConfig {
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
+}
+
+export interface UserPreferences {
+  creditCardLogic: 'transaction_date' | 'closing_day';
 }

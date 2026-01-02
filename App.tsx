@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Transaction, Budget, PlanningProfile, InvestmentGoal, Subscription, PaymentMethod } from './types';
+import { Transaction, Budget, PlanningProfile, InvestmentGoal, Subscription, PaymentMethod, UserPreferences } from './types';
 import TransactionInput from './components/TransactionInput';
 import DashboardCharts from './components/DashboardCharts';
 import TransactionList from './components/TransactionList';
@@ -8,6 +8,7 @@ import PlanningTab from './components/PlanningTab';
 import InvestmentsTab from './components/InvestmentsTab';
 import ReimbursementsTab from './components/ReimbursementsTab';
 import SettingsTab from './components/SettingsTab';
+import ConfigurationTab from './components/ConfigurationTab';
 import InstallmentsTab from './components/InstallmentsTab';
 import SubscriptionsTab from './components/SubscriptionsTab';
 import PaymentMethodsTab from './components/PaymentMethodsTab';
@@ -16,7 +17,8 @@ import UndoToast from './components/UndoToast';
 import Sidebar from './components/Sidebar';
 import { saveUserData, logoutUser, getAuthInstance, subscribeToUserData } from './services/firebase';
 import { formatCurrency } from './utils/formatters';
-import { Wallet, Settings, LayoutDashboard, Calculator, TrendingUp, Users, Layers, LogIn, LogOut, Repeat, UserCircle, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { getTransactionEffectiveDate } from './utils/financeUtils';
+import { Wallet, Settings, LayoutDashboard, Calculator, TrendingUp, Users, Layers, LogIn, LogOut, Repeat, UserCircle, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Settings2 } from 'lucide-react';
 
 const DEFAULT_BUDGET: Budget = {
   'Alimentação': 1500,
@@ -35,6 +37,10 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
   { id: 'credit_card_default', name: 'Cartão de Crédito', type: 'credit_card', closingDay: 25, dueDay: 5, color: '#4f46e5' }
 ];
 
+const DEFAULT_PREFERENCES: UserPreferences = {
+  creditCardLogic: 'transaction_date'
+};
+
 interface UndoAction {
   message: string;
   undo: () => void;
@@ -50,7 +56,8 @@ const App: React.FC = () => {
   const [planningProfiles, setPlanningProfiles] = useState<PlanningProfile[]>([]);
   const [investmentGoals, setInvestmentGoals] = useState<InvestmentGoal[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'investments' | 'planning' | 'settings' | 'reimbursements' | 'installments' | 'subscriptions' | 'payment_methods'>('dashboard');
+  const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'investments' | 'planning' | 'settings' | 'configuration' | 'reimbursements' | 'installments' | 'subscriptions' | 'payment_methods'>('dashboard');
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
 
   // Estado do mês selecionado (YYYY-MM)
@@ -75,7 +82,8 @@ const App: React.FC = () => {
 
   const summary = useMemo(() => {
     const monthlyTransactions = transactions.filter(t => {
-      return getFinancialMonth(t.date) === selectedMonth;
+      const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
+      return getFinancialMonth(effectiveDate) === selectedMonth;
     });
 
     let totalIncome = monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
@@ -171,11 +179,18 @@ const App: React.FC = () => {
     else localStorage.setItem('totalSalary', newSalary.toString());
   };
 
+  const setAndSavePreferences = (newPrefs: UserPreferences) => {
+    setPreferences(newPrefs);
+    if (user) saveUserData(user.uid, 'preferences', newPrefs);
+    else localStorage.setItem('preferences', JSON.stringify(newPrefs));
+  };
+
   const handleLogout = async () => {
     await logoutUser();
     setUser(null);
     setTransactions([]);
     setSubscriptions([]);
+    setPreferences(DEFAULT_PREFERENCES);
     loadLocalData();
   };
 
@@ -233,7 +248,9 @@ const App: React.FC = () => {
         subscribeToUserData(u.uid, 'totalSalary', (data) => data !== undefined && setTotalSalary(Number(data)));
         subscribeToUserData(u.uid, 'planningProfiles', (data) => data && setPlanningProfiles(data));
         subscribeToUserData(u.uid, 'investmentGoals', (data) => data && setInvestmentGoals(data));
+        subscribeToUserData(u.uid, 'investmentGoals', (data) => data && setInvestmentGoals(data));
         subscribeToUserData(u.uid, 'subscriptions', (data) => data && setSubscriptions(data));
+        subscribeToUserData(u.uid, 'preferences', (data) => data && setPreferences(data));
       } else { loadLocalData(); }
     });
     return () => unsubAuth();
@@ -253,8 +270,11 @@ const App: React.FC = () => {
       if (s) setTotalSalary(Number(s));
       if (p) setPlanningProfiles(JSON.parse(p));
       if (i) setInvestmentGoals(JSON.parse(i));
+      if (i) setInvestmentGoals(JSON.parse(i));
       if (sub) setSubscriptions(JSON.parse(sub));
       if (pm) setPaymentMethods(JSON.parse(pm));
+      const prefs = localStorage.getItem('preferences');
+      if (prefs) setPreferences(JSON.parse(prefs));
     } catch (e) { }
   };
 
@@ -602,6 +622,7 @@ const App: React.FC = () => {
               budget={budget}
               paymentMethods={paymentMethods}
               selectedMonth={selectedMonth}
+              preferences={preferences}
             />
 
             <TransactionList
@@ -612,6 +633,7 @@ const App: React.FC = () => {
               paymentMethods={paymentMethods}
               selectedMonth={selectedMonth}
               subscriptions={isFutureView ? subscriptions : []}
+              preferences={preferences}
             />
           </div>
           {activeTab === 'payment_methods' && <PaymentMethodsTab paymentMethods={paymentMethods} onAdd={pm => setAndSavePaymentMethods(prev => [...prev, pm])} onUpdate={pm => setAndSavePaymentMethods(prev => prev.map(item => item.id === pm.id ? pm : item))} onDelete={handleDeletePaymentMethod} />}
@@ -636,6 +658,7 @@ const App: React.FC = () => {
             setAndSaveGoals(prev => prev.map(g => g.id === goalId ? { ...g, currentAmount: g.currentAmount + amount } : g));
           }} />}
           {activeTab === 'settings' && <SettingsTab budget={budget} totalSalary={totalSalary} onUpdateBudget={setAndSaveBudget} onUpdateSalary={setAndSaveSalary} onRenameCategory={handleUpdateCategoryName} />}
+          {activeTab === 'configuration' && <ConfigurationTab preferences={preferences} onUpdatePreferences={setAndSavePreferences} />}
           {activeTab === 'reimbursements' && <ReimbursementsTab transactions={transactions} onReimburse={handleReimburse} onUndoReimburse={handleUndoReimburse} />}
         </main>
 
