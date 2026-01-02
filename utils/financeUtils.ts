@@ -5,6 +5,12 @@ export const getTransactionEffectiveDate = (
     paymentMethods: PaymentMethod[],
     preferences: UserPreferences
 ): string => {
+    // IMPORTANT: Only apply credit card logic to EXPENSE transactions
+    // Income (like reimbursements) and investments should always use their actual date
+    if (transaction.type !== 'expense') {
+        return transaction.date;
+    }
+
     // Find payment method
     const pm = paymentMethods.find(p => p.name === transaction.paymentMethod || p.id === transaction.paymentMethod);
 
