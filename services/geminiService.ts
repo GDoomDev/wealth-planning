@@ -2,7 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, AiInsight, Budget, InvestmentGoal, PaymentMethod } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const getAiClient = () => {
+  if (!process.env.API_KEY) {
+    console.warn("API Key for Gemini is missing. some features will be disabled.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
+
 
 export interface GeminiParsingResult {
   status: 'success' | 'need_clarification';
@@ -11,7 +19,7 @@ export interface GeminiParsingResult {
 }
 
 export const parseTransactionFromText = async (
-  input: string, 
+  input: string,
   existingGoals: InvestmentGoal[] = [],
   paymentMethods: PaymentMethod[] = []
 ): Promise<GeminiParsingResult> => {
@@ -22,8 +30,8 @@ export const parseTransactionFromText = async (
 
   const now = new Date();
   const currentDateString = now.toLocaleDateString('pt-BR');
-  
-  const goalsContext = existingGoals.length > 0 
+
+  const goalsContext = existingGoals.length > 0
     ? `INVESTIMENTOS: [${existingGoals.map(g => g.name).join(', ')}]`
     : "";
 
@@ -81,6 +89,8 @@ export const parseTransactionFromText = async (
   };
 
   try {
+    const ai = getAiClient();
+    if (!ai) return { status: 'success', transactions: [] };
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: input,
@@ -105,6 +115,8 @@ export const getFinancialInsights = async (transactions: Transaction[], budget: 
   if (transactions.length === 0) return null;
   const prompt = `Analise financeiramente os dados: Budget ${JSON.stringify(budget)}, Transações recentes: ${JSON.stringify(transactions.slice(0, 30))}. Retorne JSON com prediction, remainingBudgetAnalysis, anomalies (array), advice.`;
   try {
+    const ai = getAiClient();
+    if (!ai) return null;
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
