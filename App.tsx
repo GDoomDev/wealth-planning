@@ -20,7 +20,8 @@ import Sidebar from './components/Sidebar';
 import { saveUserData, logoutUser, getAuthInstance, subscribeToUserData } from './services/firebase';
 import { formatCurrency } from './utils/formatters';
 import { getTransactionEffectiveDate } from './utils/financeUtils';
-import { Wallet, Settings, LayoutDashboard, Calculator, TrendingUp, Users, Layers, LogIn, LogOut, Repeat, UserCircle, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Settings2 } from 'lucide-react';
+import { Wallet, Settings, LayoutDashboard, Calculator, TrendingUp, Users, Layers, LogIn, LogOut, Repeat, UserCircle, CreditCard, CalendarDays, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Settings2, Menu, FileSpreadsheet } from 'lucide-react';
+import { exportToExcel } from './utils/reportExporter';
 
 const DEFAULT_BUDGET: Budget = {
   'Alimentação': 1500,
@@ -61,6 +62,7 @@ const App: React.FC = () => {
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'investments' | 'planning' | 'settings' | 'configuration' | 'reimbursements' | 'installments' | 'subscriptions' | 'payment_methods' | 'invoices'>('dashboard');
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Estado do mês selecionado (YYYY-MM)
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7));
@@ -496,9 +498,22 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
+      {/* Mobile Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        user={user}
+        onLogout={handleLogout}
+        onLogin={() => setShowAuthModal(true)}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -533,12 +548,21 @@ const App: React.FC = () => {
 
         {/* Mobile Header (Visible only on mobile) */}
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-50">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors"
+            aria-label="Abrir menu"
+          >
+            <Menu size={24} />
+          </button>
+
           <div className="flex items-center gap-2 text-indigo-700 font-extrabold text-lg">
             <div className="bg-indigo-600 text-white p-1.5 rounded-lg shadow-sm">
               <Wallet size={20} />
             </div>
             <span>Wealth Plan</span>
           </div>
+
           <button onClick={() => setShowAuthModal(true)} className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg">
             {user ? <UserCircle size={24} className="text-indigo-600" /> : <LogIn size={24} />}
           </button>
@@ -584,6 +608,14 @@ const App: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              <button
+                onClick={() => exportToExcel(transactions, subscriptions, paymentMethods, preferences)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold text-sm transition-all border border-emerald-200"
+              >
+                <FileSpreadsheet size={18} />
+                Exportar Relatório Excel
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

@@ -26,9 +26,11 @@ interface SidebarProps {
     user?: any;
     onLogout?: () => void;
     onLogin?: () => void;
+    isMobileOpen?: boolean;
+    onMobileClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout, onLogin }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout, onLogin, isMobileOpen, onMobileClose }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const menuItems = [
@@ -48,12 +50,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
 
     return (
         <div
-            className={`${isCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-slate-200 h-screen flex flex-col shadow-sm hidden md:flex transition-all duration-300 ease-in-out relative`}
+            className={`
+                ${isCollapsed ? 'w-20' : 'w-64'} 
+                bg-white border-r border-slate-200 h-screen flex flex-col shadow-sm 
+                transition-all duration-300 ease-in-out relative
+                md:flex
+                ${isMobileOpen ? 'flex fixed left-0 top-0 z-50 transform translate-x-0' : 'hidden md:flex transform -translate-x-full md:translate-x-0'}
+            `}
         >
-            {/* Toggle Button */}
+            {/* Toggle Button - Hidden on mobile */}
             <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className="absolute -right-3 top-9 bg-white border border-slate-200 rounded-full p-1 text-slate-400 hover:text-indigo-600 shadow-sm z-50 hover:bg-slate-50 transition-colors"
+                className="hidden md:block absolute -right-3 top-9 bg-white border border-slate-200 rounded-full p-1 text-slate-400 hover:text-indigo-600 shadow-sm z-50 hover:bg-slate-50 transition-colors"
                 title={isCollapsed ? "Expandir menu" : "Recolher menu"}
             >
                 {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -79,7 +87,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
                     return (
                         <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => {
+                                setActiveTab(item.id);
+                                onMobileClose?.();
+                            }}
                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative
                                 ${isActive
                                     ? 'bg-indigo-50 text-indigo-700 shadow-sm'

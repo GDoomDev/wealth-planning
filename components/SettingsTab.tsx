@@ -106,12 +106,12 @@ const SettingsTab: React.FC<Props> = ({ budget, totalSalary, onUpdateBudget, onU
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-                <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                    <Settings className="text-slate-400" /> Definição de Metas por Categoria
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-8">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Settings className="text-slate-400" /> <span>Definição de Metas por Categoria</span>
                 </h2>
 
-                <form onSubmit={handleAddCategory} className="flex gap-2 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <form onSubmit={handleAddCategory} className="flex flex-col sm:flex-row gap-2 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <input
                         type="text"
                         placeholder="Nova Categoria"
@@ -119,16 +119,16 @@ const SettingsTab: React.FC<Props> = ({ budget, totalSalary, onUpdateBudget, onU
                         value={newCategory}
                         onChange={(e) => setNewCategory(e.target.value)}
                     />
-                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-lg font-medium transition-colors">
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors w-full sm:w-auto">
                         Adicionar
                     </button>
                 </form>
 
                 <div className="space-y-3">
                     {Object.entries(budget).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([cat, val]) => (
-                        <div key={cat} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-shadow">
+                        <div key={cat} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-shadow gap-3">
                             {editingCategory === cat ? (
-                                <div className="flex items-center gap-3 w-full animate-in fade-in">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full animate-in fade-in">
                                     <input
                                         type="text"
                                         value={editName}
@@ -138,26 +138,26 @@ const SettingsTab: React.FC<Props> = ({ budget, totalSalary, onUpdateBudget, onU
                                     <CurrencyInput
                                         value={editValue}
                                         onChange={setEditValue}
-                                        className="w-40 p-2 border border-indigo-300 rounded-lg text-sm text-right font-bold text-indigo-600"
+                                        className="w-full sm:w-40 p-2 border border-indigo-300 rounded-lg text-sm text-right font-bold text-indigo-600"
                                     />
-                                    <div className="flex gap-1">
-                                        <button onClick={saveEdit} className="bg-emerald-100 text-emerald-700 p-2 rounded-lg hover:bg-emerald-200"><Save size={18} /></button>
-                                        <button onClick={() => setEditingCategory(null)} className="bg-slate-100 text-slate-500 p-2 rounded-lg hover:bg-slate-200"><X size={18} /></button>
+                                    <div className="flex gap-1 justify-end">
+                                        <button onClick={saveEdit} className="bg-emerald-100 text-emerald-700 p-2.5 rounded-lg hover:bg-emerald-200"><Save size={18} /></button>
+                                        <button onClick={() => setEditingCategory(null)} className="bg-slate-100 text-slate-500 p-2.5 rounded-lg hover:bg-slate-200"><X size={18} /></button>
                                     </div>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-3 flex-1">
                                         <div className="bg-indigo-50 p-2 rounded-lg">
                                             <PieChart size={20} className="text-indigo-500" />
                                         </div>
                                         <span className="font-bold text-slate-700">{cat}</span>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2 sm:gap-4 justify-between sm:justify-end w-full sm:w-auto">
                                         <span className="text-lg font-bold text-slate-800">{formatCurrency(val as number)}</span>
-                                        <div className="flex items-center gap-1 border-l pl-4 border-slate-100">
-                                            <button onClick={() => startEdit(cat, val as number)} className="p-2 text-slate-400 hover:text-indigo-600"><Edit2 size={18} /></button>
-                                            <button onClick={() => handleDeleteCategory(cat)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18} /></button>
+                                        <div className="flex items-center gap-1 sm:border-l sm:pl-4 border-slate-100">
+                                            <button onClick={() => startEdit(cat, val as number)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
+                                            <button onClick={() => handleDeleteCategory(cat)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                                         </div>
                                     </div>
                                 </>
