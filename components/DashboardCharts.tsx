@@ -1,27 +1,36 @@
 
 import React, { useMemo, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Transaction, Budget, PaymentMethod } from '../types';
+import { Transaction, Budget, PaymentMethod, Subscription, UserPreferences } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { getTransactionEffectiveDate } from '../utils/financeUtils';
 
 interface Props {
   transactions: Transaction[];
   budget: Budget;
   paymentMethods: PaymentMethod[];
   selectedMonth: string;
+  subscriptions: Subscription[];
+  preferences: UserPreferences;
 }
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
 
-const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods, selectedMonth }) => {
+const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods, selectedMonth, subscriptions, preferences }) => {
 
   const getFinancialMonth = useCallback((dateStr: string) => {
+    // Para transações reais, usamos a data efetiva se for despesa
+    // No entanto, para simplificar o gráfico histórico que já usa getFinancialMonth em vários lugares,
+    // vamos garantir que a lógica seja consistente.
     return dateStr.slice(0, 7);
   }, []);
 
   const monthlyTransactions = useMemo(() => {
-    return transactions.filter(t => getFinancialMonth(t.date) === selectedMonth);
-  }, [transactions, getFinancialMonth, selectedMonth]);
+    return transactions.filter(t => {
+      const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
+      return effectiveDate.slice(0, 7) === selectedMonth;
+    });
+  }, [transactions, paymentMethods, preferences, selectedMonth]);
 
   const monthlyBalanceHistory = useMemo(() => {
     const data: Record<string, { income: number; expense: number; investment: number }> = {};
@@ -30,14 +39,65 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
     const [selYear, selMonth] = selectedMonth.split('-').map(Number);
     const startDate = new Date(selYear, selMonth - 4, 1);
     const endDate = new Date(selYear, selMonth + 1, 1);
+    const startMonthStr = startDate.toISOString().slice(0, 7);
+    const endMonthStr = endDate.toISOString().slice(0, 7);
 
+    // 1. Transações Reais
     transactions.forEach(t => {
-      const key = getFinancialMonth(t.date);
-      if (key >= startDate.toISOString().slice(0, 7) && key <= endDate.toISOString().slice(0, 7)) {
+      const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
+      const key = effectiveDate.slice(0, 7);
+      if (key >= startMonthStr && key <= endMonthStr) {
         if (!data[key]) data[key] = { income: 0, expense: 0, investment: 0 };
         if (t.type === 'income') data[key].income += t.amount;
         if (t.type === 'expense') data[key].expense += t.amount;
         if (t.type === 'investment') data[key].investment += t.amount;
+      }
+    });
+
+    // 2. Projeções de Assinaturas (apenas para meses >= hoje)
+    const nowMonthStr = new Date().toISOString().slice(0, 7);
+    const monthsInView: string[] = [];
+    let curr = new Date(startDate);
+    while (curr <= endDate) {
+      monthsInView.push(curr.toISOString().slice(0, 7));
+      curr.setMonth(curr.getMonth() + 1);
+    }
+
+    monthsInView.forEach(m => {
+      if (m >= nowMonthStr) {
+        if (!data[m]) data[m] = { income: 0, expense: 0, investment: 0 };
+
+        subscriptions.forEach(sub => {
+          // Verifica se já existe transação de assinatura lançada para este mês
+          const alreadyLaunched = transactions.some(t => {
+            const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
+            return effectiveDate.slice(0, 7) === m && t.description.includes(`Assinatura: ${sub.name}`);
+          });
+
+          if (!alreadyLaunched) {
+            const billingDay = parseInt(sub.startDate.split('-')[2]);
+            const simulatedDate = `${m}-${String(billingDay).padStart(2, '0')}`;
+
+            if (simulatedDate >= sub.startDate && (!sub.activeUntil || simulatedDate <= sub.activeUntil)) {
+              const dummyTx: Transaction = {
+                id: 'dummy',
+                amount: sub.amount,
+                category: sub.category,
+                description: sub.name,
+                date: simulatedDate,
+                paymentMethod: sub.paymentMethod,
+                type: 'expense'
+              };
+              const effectiveDate = getTransactionEffectiveDate(dummyTx, paymentMethods, preferences);
+              const effectiveMonth = effectiveDate.slice(0, 7);
+
+              if (effectiveMonth >= startMonthStr && effectiveMonth <= endMonthStr) {
+                if (!data[effectiveMonth]) data[effectiveMonth] = { income: 0, expense: 0, investment: 0 };
+                data[effectiveMonth].expense += sub.amount;
+              }
+            }
+          }
+        });
       }
     });
 
@@ -48,13 +108,41 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
         ...values
       }))
       .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-  }, [transactions, getFinancialMonth, selectedMonth]);
+  }, [transactions, selectedMonth, subscriptions, paymentMethods, preferences]);
 
   const budgetVsActual = useMemo(() => {
     const currentMonthExpenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
+
+    // Adiciona projeções de assinaturas (se o mês for >= agora)
+    const nowMonthStr = new Date().toISOString().slice(0, 7);
+    if (selectedMonth >= nowMonthStr) {
+      subscriptions.forEach(sub => {
+        const alreadyLaunched = monthlyTransactions.some(t => t.description.includes(`Assinatura: ${sub.name}`));
+        if (!alreadyLaunched) {
+          const billingDay = parseInt(sub.startDate.split('-')[2]);
+          const simulatedDate = `${selectedMonth}-${String(billingDay).padStart(2, '0')}`;
+
+          if (simulatedDate >= sub.startDate && (!sub.activeUntil || simulatedDate <= sub.activeUntil)) {
+            const dummyTx: Transaction = {
+              id: 'dummy',
+              amount: sub.amount,
+              category: sub.category,
+              description: sub.name,
+              date: simulatedDate,
+              paymentMethod: sub.paymentMethod,
+              type: 'expense'
+            };
+            const effectiveDate = getTransactionEffectiveDate(dummyTx, paymentMethods, preferences);
+            if (effectiveDate.slice(0, 7) === selectedMonth) {
+              currentMonthExpenses[sub.category] = (currentMonthExpenses[sub.category] || 0) + sub.amount;
+            }
+          }
+        }
+      });
+    }
 
     return Object.keys(budget).map((category, index) => {
       const budgetAmount = budget[category] || 0;

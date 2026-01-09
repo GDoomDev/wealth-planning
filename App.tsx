@@ -97,9 +97,34 @@ const App: React.FC = () => {
     const nowMonth = new Date().toISOString().slice(0, 7);
     if (selectedMonth >= nowMonth) {
       subscriptions.forEach(sub => {
+        // Verificamos se a assinatura já foi lançada manualmente como transação
         const alreadyLaunched = monthlyTransactions.some(t => t.description.includes(`Assinatura: ${sub.name}`));
+
         if (!alreadyLaunched) {
-          totalExpense += sub.amount;
+          // Simulamos a data de cobrança para o mês selecionado
+          const billingDay = parseInt(sub.startDate.split('-')[2]);
+          const simulatedDate = `${selectedMonth}-${String(billingDay).padStart(2, '0')}`;
+
+          // A assinatura só conta se a data simulada for >= data de início
+          // E se não houver data de término ou a data simulada for <= término
+          if (simulatedDate >= sub.startDate && (!sub.activeUntil || simulatedDate <= sub.activeUntil)) {
+            // Aplicamos a lógica de fechamento de cartão
+            const dummyTx: Transaction = {
+              id: 'dummy',
+              amount: sub.amount,
+              category: sub.category,
+              description: sub.name,
+              date: simulatedDate,
+              paymentMethod: sub.paymentMethod,
+              type: 'expense'
+            };
+            const effectiveDate = getTransactionEffectiveDate(dummyTx, paymentMethods, preferences);
+
+            // Se a data efetiva cair neste mês selecionado, somamos
+            if (effectiveDate.slice(0, 7) === selectedMonth) {
+              totalExpense += sub.amount;
+            }
+          }
         }
       });
     }
@@ -657,6 +682,7 @@ const App: React.FC = () => {
               budget={budget}
               paymentMethods={paymentMethods}
               selectedMonth={selectedMonth}
+              subscriptions={subscriptions}
               preferences={preferences}
             />
 

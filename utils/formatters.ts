@@ -27,3 +27,23 @@ export const formatDateBR = (isoDate: string): string => {
   if (!year || !month || !day) return isoDate;
   return `${day}/${month}/${year}`;
 };
+
+export const maskDateBR = (value: string): string => {
+  const onlyDigits = value.replace(/\D/g, "");
+  let masked = onlyDigits;
+  if (onlyDigits.length > 2) {
+    masked = `${onlyDigits.slice(0, 2)}/${onlyDigits.slice(2)}`;
+  }
+  if (onlyDigits.length > 4) {
+    masked = `${onlyDigits.slice(0, 2)}/${onlyDigits.slice(2, 4)}/${onlyDigits.slice(4, 8)}`;
+  }
+  return masked.slice(0, 10);
+};
+
+export const parseDateBRToISO = (brDate: string): string => {
+  const parts = brDate.split('/');
+  if (parts.length !== 3) return "";
+  const [day, month, year] = parts;
+  if (day.length !== 2 || month.length !== 2 || year.length !== 4) return "";
+  return `${year}-${month}-${day}`;
+};

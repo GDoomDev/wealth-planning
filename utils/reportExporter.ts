@@ -12,9 +12,14 @@ export const exportToExcel = (
     // 1. Definição do Range de Meses
     const now = new Date();
     let minDate = new Date();
-    if (transactions.length > 0) {
-        minDate = new Date(transactions.reduce((min, t) => t.date < min ? t.date : min, transactions[0].date) + 'T12:00:00');
+
+    const allDates: string[] = transactions.map(t => t.date);
+    subscriptions.forEach(sub => allDates.push(sub.startDate));
+
+    if (allDates.length > 0) {
+        minDate = new Date(allDates.reduce((min, d) => d < min ? d : min, allDates[0]) + 'T12:00:00');
     }
+
     // Start from the beginning of that year or at least 6 months back
     const startDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
     const endDate = new Date(now.getFullYear(), now.getMonth() + 12, 1); // 12 months ahead
@@ -133,11 +138,36 @@ export const exportToExcel = (
     addSectionHeader('   ASSINATURAS');
     subscriptions.forEach(sub => {
         const monthlyData: Record<string, number> = {};
-        const startMonth = sub.startDate.slice(0, 7);
+
+        // Para cada mês no relatório, verificamos se a assinatura estaria ativa
+        // e aplicamos a lógica de data efetiva baseada na data de cobrança (mesmo dia da startDate)
         months.forEach(m => {
-            if (m >= startMonth) {
-                if (!sub.activeUntil || m <= sub.activeUntil.slice(0, 7)) {
-                    monthlyData[m] = sub.amount;
+            const [y, mm] = m.split('-').map(Number);
+            const billingDay = parseInt(sub.startDate.split('-')[2]);
+            // Simulamos uma data de transação para este mês específico
+            const simulatedDate = `${m}-${String(billingDay).padStart(2, '0')}`;
+
+            // Verificamos se esta data simulada é posterior ou igual ao início real
+            if (simulatedDate >= sub.startDate) {
+                // Verificamos se está dentro da validade (se houver término)
+                if (!sub.activeUntil || simulatedDate <= sub.activeUntil) {
+                    // Agora aplicamos a lógica de fechamento de cartão se aplicável
+                    const dummyTx: Transaction = {
+                        id: 'dummy',
+                        amount: sub.amount,
+                        category: sub.category,
+                        description: sub.name,
+                        date: simulatedDate,
+                        paymentMethod: sub.paymentMethod,
+                        type: 'expense'
+                    };
+                    const effectiveDate = getTransactionEffectiveDate(dummyTx, paymentMethods, preferences);
+                    const effectiveMonth = effectiveDate.slice(0, 7);
+
+                    // Solo adicionamos se o mês resultante bater com o mês 'm' que estamos iterando
+                    // OU se bater com um mês futuro (neste caso, adicionamos no mapa do mês efetivo)
+                    if (!monthlyData[effectiveMonth]) monthlyData[effectiveMonth] = 0;
+                    monthlyData[effectiveMonth] += sub.amount;
                 }
             }
         });
