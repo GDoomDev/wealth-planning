@@ -1,9 +1,10 @@
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Transaction, Budget, PaymentMethod, Subscription, UserPreferences } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDateBR } from '../utils/formatters';
 import { getTransactionEffectiveDate } from '../utils/financeUtils';
+import { ChevronDown, ChevronUp, History, ShoppingBag, CreditCard } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
@@ -17,11 +18,9 @@ interface Props {
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
 
 const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods, selectedMonth, subscriptions, preferences }) => {
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const getFinancialMonth = useCallback((dateStr: string) => {
-    // Para transações reais, usamos a data efetiva se for despesa
-    // No entanto, para simplificar o gráfico histórico que já usa getFinancialMonth em vários lugares,
-    // vamos garantir que a lógica seja consistente.
     return dateStr.slice(0, 7);
   }, []);
 
@@ -34,6 +33,7 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
 
   const monthlyBalanceHistory = useMemo(() => {
     const data: Record<string, { income: number; expense: number; investment: number }> = {};
+    const nowMonthStr = new Date().toISOString().slice(0, 7);
 
     // Mostra 6 meses em torno do selecionado para contexto
     const [selYear, selMonth] = selectedMonth.split('-').map(Number);
@@ -55,7 +55,6 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
     });
 
     // 2. Projeções de Assinaturas (apenas para meses >= hoje)
-    const nowMonthStr = new Date().toISOString().slice(0, 7);
     const monthsInView: string[] = [];
     let curr = new Date(startDate);
     while (curr <= endDate) {
@@ -111,13 +110,13 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
   }, [transactions, selectedMonth, subscriptions, paymentMethods, preferences]);
 
   const budgetVsActual = useMemo(() => {
+    const nowMonthStr = new Date().toISOString().slice(0, 7);
     const currentMonthExpenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
 
     // Adiciona projeções de assinaturas (se o mês for >= agora)
-    const nowMonthStr = new Date().toISOString().slice(0, 7);
     if (selectedMonth >= nowMonthStr) {
       subscriptions.forEach(sub => {
         const alreadyLaunched = monthlyTransactions.some(t => t.description.includes(`Assinatura: ${sub.name}`));
@@ -150,6 +149,48 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
       const remaining = Math.max(0, budgetAmount - spentAmount);
       const isOverBudget = spentAmount > budgetAmount;
       const percentage = budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
+
+      // Extract details for the "Secret Menu"
+      const details = [
+        ...monthlyTransactions.filter(t => t.category === category && t.type === 'expense').map(t => ({
+          id: t.id,
+          description: t.description,
+          amount: t.amount,
+          date: t.date,
+          isProjection: false,
+          paymentMethod: t.paymentMethod
+        })),
+        ...(selectedMonth >= nowMonthStr ? subscriptions.filter(s => s.category === category).map(s => {
+          const alreadyLaunched = monthlyTransactions.some(t => t.description.includes(`Assinatura: ${s.name}`));
+          if (alreadyLaunched) return null;
+
+          const billingDay = parseInt(s.startDate.split('-')[2]);
+          const simulatedDate = `${selectedMonth}-${String(billingDay).padStart(2, '0')}`;
+          if (simulatedDate < s.startDate || (s.activeUntil && simulatedDate > s.activeUntil)) return null;
+
+          const dummyTx: Transaction = {
+            id: 'dummy',
+            amount: s.amount,
+            category: s.category,
+            description: s.name,
+            date: simulatedDate,
+            paymentMethod: s.paymentMethod,
+            type: 'expense'
+          };
+          const effectiveDate = getTransactionEffectiveDate(dummyTx, paymentMethods, preferences);
+          if (effectiveDate.slice(0, 7) !== selectedMonth) return null;
+
+          return {
+            id: `proj-${s.id}`,
+            description: s.name,
+            amount: s.amount,
+            date: simulatedDate,
+            isProjection: true,
+            paymentMethod: s.paymentMethod
+          };
+        }).filter(Boolean) as any[] : [])
+      ];
+
       return {
         name: category,
         budget: budgetAmount,
@@ -157,30 +198,79 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
         remaining,
         percentage,
         isOverBudget,
+        details: details.sort((a, b) => b.date.localeCompare(a.date)),
         chartData: [
           { name: 'Gasto', value: spentAmount, fill: isOverBudget ? '#ef4444' : COLORS[index % COLORS.length] },
           { name: 'Restante', value: remaining, fill: '#f1f5f9' }
         ]
       };
     }).sort((a, b) => b.percentage - a.percentage);
-  }, [monthlyTransactions, budget]);
+  }, [monthlyTransactions, budget, selectedMonth, subscriptions, paymentMethods, preferences]);
 
   return (
     <div className="space-y-6 mb-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {budgetVsActual.map((item) => (
-          <div key={item.name} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-700 text-sm truncate" title={item.name}>{item.name}</p>
-              <div className="mt-1"><p className={`font-bold ${item.isOverBudget ? 'text-red-600' : 'text-slate-800'}`}>{formatCurrency(item.spent).replace('R$', '')}</p></div>
-              <div className="mt-1 space-y-0.5"><p className="text-[10px] text-slate-400 truncate">Meta: {formatCurrency(item.budget)}</p></div>
+        {budgetVsActual.map((item) => {
+          const isExpanded = expandedCategory === item.name;
+
+          return (
+            <div
+              key={item.name}
+              className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 ${isExpanded ? 'border-indigo-300 ring-2 ring-indigo-50 md:col-span-2 lg:col-span-2' : 'border-slate-200 hover:border-indigo-200'}`}
+            >
+              <div
+                className="p-4 flex items-center justify-between cursor-pointer group"
+                onClick={() => setExpandedCategory(isExpanded ? null : item.name)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-700 text-sm truncate" title={item.name}>{item.name}</p>
+                    {isExpanded ? <ChevronUp size={14} className="text-indigo-500" /> : <ChevronDown size={14} className="text-slate-300 group-hover:text-indigo-400" />}
+                  </div>
+                  <div className="mt-1"><p className={`font-bold ${item.isOverBudget ? 'text-red-600' : 'text-slate-800'}`}>{formatCurrency(item.spent).replace('R$', '')}</p></div>
+                  <div className="mt-1 space-y-0.5"><p className="text-[10px] text-slate-400 truncate">Meta: {formatCurrency(item.budget)}</p></div>
+                </div>
+                <div className="h-16 w-16 relative flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={item.chartData} cx="50%" cy="50%" innerRadius={18} outerRadius={25} dataKey="value" startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>{item.chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Pie></PieChart></ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className={`text-[9px] font-bold ${item.isOverBudget ? 'text-red-600' : 'text-slate-500'}`}>{item.percentage.toFixed(0)}%</span></div>
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-300">
+                  <div className="pt-3 border-t border-indigo-50 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                    {item.details.length === 0 ? (
+                      <p className="text-[10px] text-slate-400 text-center py-4">Nenhuma transação neste mês</p>
+                    ) : (
+                      item.details.map((detail: any, idx: number) => (
+                        <div key={`${detail.id}-${idx}`} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100/50">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {detail.isProjection ? (
+                              <ShoppingBag size={12} className="text-indigo-400 flex-shrink-0" />
+                            ) : (
+                              <History size={12} className="text-slate-400 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold text-slate-700 truncate leading-tight">{detail.description}</p>
+                              <p className="text-[9px] text-slate-400 flex items-center gap-1">
+                                {formatDateBR(detail.date)}
+                                {detail.isProjection && <span className="bg-indigo-100 text-indigo-600 px-1 rounded-[4px] font-bold text-[8px]">PROJEÇÃO</span>}
+                                {!detail.isProjection && <span className="flex items-center gap-0.5"><CreditCard size={8} /> {detail.paymentMethod}</span>}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-[11px] font-extrabold text-slate-800 ml-2 whitespace-nowrap">
+                            {formatCurrency(detail.amount)}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="h-16 w-16 relative flex-shrink-0">
-              <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={item.chartData} cx="50%" cy="50%" innerRadius={18} outerRadius={25} dataKey="value" startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>{item.chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Pie></PieChart></ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className={`text-[9px] font-bold ${item.isOverBudget ? 'text-red-600' : 'text-slate-500'}`}>{item.percentage.toFixed(0)}%</span></div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">

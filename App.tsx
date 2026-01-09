@@ -646,7 +646,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
                 <p className="text-sm text-slate-500 font-medium mb-1 flex items-center gap-2">
-                  Saldo Projetado
+                  Saldo
                   {isFutureView && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">PROJEÇÃO</span>}
                 </p>
                 <p className={`text-2xl font-bold ${summary.balance >= 0 ? 'text-slate-800' : 'text-red-600'}`}>{formatCurrency(summary.balance)}</p>

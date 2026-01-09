@@ -137,10 +137,7 @@ const InstallmentsTab: React.FC<Props> = ({ transactions, onUpdateGroup, onAddGr
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Data da 1ª Parcela</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                    <DateInput value={createForm.date} onChange={val => setCreateForm({ ...createForm, date: val })} className="w-full pl-10 p-2 border border-slate-300 rounded text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500" />
-                  </div>
+                  <DateInput value={createForm.date} onChange={val => setCreateForm({ ...createForm, date: val })} className="w-full p-2 border border-slate-300 rounded text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
@@ -259,14 +256,11 @@ const InstallmentsTab: React.FC<Props> = ({ transactions, onUpdateGroup, onAddGr
 
                     <div className="space-y-1">
                       <label className="text-[9px] text-slate-400 uppercase font-bold ml-1">Data de Início</label>
-                      <div className="relative">
-                        <Calendar className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
-                        <DateInput
-                          value={editDate}
-                          onChange={val => setEditDate(val)}
-                          className="w-full pl-8 p-2 border border-slate-200 rounded text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
+                      <DateInput
+                        value={editDate}
+                        onChange={val => setEditDate(val)}
+                        className="w-full p-2 border border-slate-200 rounded text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">

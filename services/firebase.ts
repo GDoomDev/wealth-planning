@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 
 // --- ÁREA DO DESENVOLVEDOR ---
@@ -59,6 +59,11 @@ export const registerUser = async (email: string, pass: string) => {
 export const logoutUser = async () => {
   if (!auth) return;
   return signOut(auth);
+};
+
+export const resetPassword = async (email: string) => {
+  if (!auth) throw new Error("Firebase não configurado pelo desenvolvedor.");
+  return sendPasswordResetEmail(auth, email);
 };
 
 // --- Data Sync Methods ---
