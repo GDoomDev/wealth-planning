@@ -7,7 +7,8 @@ export const getTransactionEffectiveDate = (
 ): string => {
     // IMPORTANT: Only apply credit card logic to EXPENSE transactions
     // Income (like reimbursements) and investments should always use their actual date
-    if (transaction.type !== 'expense') {
+    // ALSO: skip for anticipation transactions so they show up on the day they were made
+    if (transaction.type !== 'expense' || transaction.description.includes('Antecipação')) {
         return transaction.date;
     }
 
@@ -67,4 +68,83 @@ export const getTransactionEffectiveDate = (
             .toISOString()
             .split('T')[0];
     }
+};
+
+/**
+ * Calculate the invoice period (start and end dates) for a given card and billing month
+ * @param closingDay - The day of month when the card closes (1-31)
+ * @param year - The year of the invoice closing month
+ * @param month - The month of the invoice closing (1-12)
+ * @returns Object with startDate and endDate in ISO format
+ */
+export const getInvoicePeriod = (closingDay: number, year: number, month: number) => {
+    // For a card that closes on day 25:
+    // January invoice (closes Jan 25) includes: Dec 26 to Jan 25
+
+    // End date is the closing day of the specified month
+    const endDate = new Date(year, month - 1, closingDay, 12, 0, 0);
+
+    // Start date is the day after the previous closing
+    const startDate = new Date(year, month - 2, closingDay + 1, 12, 0, 0);
+
+    return {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+    };
+};
+
+/**
+ * Get invoice data for a specific card and billing month
+ * @param transactions - All transactions
+ * @param paymentMethod - The payment method (credit card)
+ * @param year - The year of the invoice
+ * @param month - The month of the invoice (1-12)
+ * @returns Invoice details including transactions and total
+ */
+export const getInvoiceForCard = (
+    transactions: Transaction[],
+    paymentMethod: PaymentMethod,
+    year: number,
+    month: number
+) => {
+    if (paymentMethod.type !== 'credit_card' || !paymentMethod.closingDay || !paymentMethod.dueDay) {
+        return {
+            transactions: [],
+            total: 0,
+            closingDate: '',
+            dueDate: '',
+            period: { startDate: '', endDate: '' }
+        };
+    }
+
+    const period = getInvoicePeriod(paymentMethod.closingDay, year, month);
+
+    // Filter transactions for this card within the billing period
+    const invoiceTransactions = transactions.filter(t => {
+        // Must be an expense transaction using this payment method
+        if (t.type !== 'expense') return false;
+        if (t.paymentMethod !== paymentMethod.name && t.paymentMethod !== paymentMethod.id) return false;
+
+        // Must be within the billing period
+        return t.date >= period.startDate && t.date <= period.endDate;
+    });
+
+    const total = invoiceTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // Calculate due date
+    const closingDate = new Date(year, month - 1, paymentMethod.closingDay, 12, 0, 0);
+    let dueDate = new Date(year, month - 1, paymentMethod.dueDay, 12, 0, 0);
+
+    // If due day is before or equal to closing day, due date is next month
+    if (paymentMethod.dueDay <= paymentMethod.closingDay) {
+        dueDate = new Date(year, month, paymentMethod.dueDay, 12, 0, 0);
+    }
+
+    return {
+        transactions: invoiceTransactions.sort((a, b) => b.date.localeCompare(a.date)),
+        total,
+        closingDate: closingDate.toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split('T')[0],
+        period
+    };
 };

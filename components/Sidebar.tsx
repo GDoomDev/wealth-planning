@@ -14,8 +14,10 @@ import {
     UserCircle,
     ChevronLeft,
     ChevronRight,
-    Wallet
+    Wallet,
+    Receipt
 } from 'lucide-react';
+
 
 
 interface SidebarProps {
@@ -33,6 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'settings', label: 'Orçamento', icon: Settings },
         { id: 'payment_methods', label: 'Meios de Pagamento', icon: CreditCard },
+        { id: 'invoices', label: 'Faturas', icon: Receipt },
         { id: 'subscriptions', label: 'Assinaturas', icon: Repeat },
         { id: 'installments', label: 'Parcelas', icon: Layers },
         { id: 'planning', label: 'Planejamento', icon: Calculator },
@@ -40,6 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         { id: 'reimbursements', label: 'Reembolsos', icon: Users },
         { id: 'configuration', label: 'Configurações', icon: Settings2 },
     ];
+
 
 
     return (

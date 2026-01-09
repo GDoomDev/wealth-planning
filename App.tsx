@@ -12,8 +12,10 @@ import ConfigurationTab from './components/ConfigurationTab';
 import InstallmentsTab from './components/InstallmentsTab';
 import SubscriptionsTab from './components/SubscriptionsTab';
 import PaymentMethodsTab from './components/PaymentMethodsTab';
+import InvoicesTab from './components/InvoicesTab';
 import AuthModal from './components/AuthModal';
 import UndoToast from './components/UndoToast';
+
 import Sidebar from './components/Sidebar';
 import { saveUserData, logoutUser, getAuthInstance, subscribeToUserData } from './services/firebase';
 import { formatCurrency } from './utils/formatters';
@@ -57,7 +59,7 @@ const App: React.FC = () => {
   const [investmentGoals, setInvestmentGoals] = useState<InvestmentGoal[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'investments' | 'planning' | 'settings' | 'configuration' | 'reimbursements' | 'installments' | 'subscriptions' | 'payment_methods'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'investments' | 'planning' | 'settings' | 'configuration' | 'reimbursements' | 'installments' | 'subscriptions' | 'payment_methods' | 'invoices'>('dashboard');
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
 
   // Estado do mês selecionado (YYYY-MM)
@@ -638,6 +640,7 @@ const App: React.FC = () => {
             />
           </div>
           {activeTab === 'payment_methods' && <PaymentMethodsTab paymentMethods={paymentMethods} onAdd={pm => setAndSavePaymentMethods(prev => [...prev, pm])} onUpdate={pm => setAndSavePaymentMethods(prev => prev.map(item => item.id === pm.id ? pm : item))} onDelete={handleDeletePaymentMethod} />}
+          {activeTab === 'invoices' && <InvoicesTab transactions={transactions} paymentMethods={paymentMethods} />}
           {activeTab === 'subscriptions' && <SubscriptionsTab subscriptions={subscriptions} transactions={transactions} onAddSubscription={(s) => setAndSaveSubscriptions(prev => [...prev, s])} onDeleteSubscription={handleDeleteSubscription} onUpdateSubscription={(s) => setAndSaveSubscriptions(prev => prev.map(item => item.id === s.id ? s : item))} categories={categories} paymentMethods={paymentMethods} />}
           {activeTab === 'installments' && <InstallmentsTab transactions={transactions} onUpdateGroup={handleUpdateGroup} onAddGroup={handleAddGroup} onAnticipateGroup={handleAnticipateGroup} onDeleteGroup={handleDeleteGroup} categories={categories} paymentMethods={paymentMethods} />}
           {activeTab === 'planning' && <PlanningTab profiles={planningProfiles} transactions={transactions} budget={budget} onSaveProfile={handleSaveProfile} onDeleteProfile={handleDeleteProfile} defaultBudget={budget} draft={planningDraft} onUpdateDraft={setPlanningDraft} />}
