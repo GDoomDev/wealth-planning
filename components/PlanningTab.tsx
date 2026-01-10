@@ -163,6 +163,17 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
         });
         const totalSubscriptions = activeSubscriptions.reduce((sum, s) => sum + s.amount, 0);
 
+        // 5. Entradas Confirmadas (Non-salary incomes in target month)
+        const confirmedIncomes = transactions.filter(t => {
+            const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
+            const isTargetMonth = effectiveDate.slice(0, 7) === nextMonth;
+            const isIncome = t.type === 'income';
+            const isNotSalary = !t.description.toLowerCase().includes('salário') && !t.description.toLowerCase().includes('salario');
+
+            return isTargetMonth && isIncome && isNotSalary;
+        });
+        const totalConfirmedIncomes = confirmedIncomes.reduce((sum, t) => sum + t.amount, 0);
+
         return {
             projectedSalary,
             pendingReimbursements,
@@ -170,14 +181,16 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
             projectedInstallments,
             totalProjectedInstallments,
             activeSubscriptions,
-            totalSubscriptions
+            totalSubscriptions,
+            confirmedIncomes,
+            totalConfirmedIncomes
         };
     }, [transactions, subscriptions, targetMonth, paymentMethods, preferences]);
 
     // VALORES FINAIS
     const totalExtraIncomes = extraIncomes.reduce((acc, curr) => acc + curr.amount, 0);
     const finalIncome = manualSalary !== null ? manualSalary : projections.projectedSalary;
-    const finalTotalIncome = finalIncome + (includeReimbursements ? projections.totalPendingReimbursements : 0) + totalExtraIncomes;
+    const finalTotalIncome = finalIncome + (includeReimbursements ? projections.totalPendingReimbursements : 0) + totalExtraIncomes + projections.totalConfirmedIncomes;
 
     const currentBudget = manualBudget || defaultBudget;
 
@@ -383,9 +396,25 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
                                     </p>
                                     <div className={`mt-2 space-y-1 transition-opacity ${includeReimbursements ? 'opacity-100' : 'opacity-50'}`}>
                                         {projections.pendingReimbursements.map(t => (
-                                            <div key={t.id} className="flex justify-between text-xs text-slate-500 border-b border-slate-50 pb-1 last:border-0">
-                                                <span className="truncate max-w-[150px]">{t.description}</span>
-                                                <span>{formatCurrency(t.amount)}</span>
+                                            <div key={t.id} className="flex justify-between items-center gap-2 text-xs text-slate-500 border-b border-slate-50 pb-1 last:border-0">
+                                                <span className="truncate flex-1 min-w-0" title={t.description}>{t.description}</span>
+                                                <span className="whitespace-nowrap font-medium">{formatCurrency(t.amount)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Section: Confirmed Incomes (Realized) */}
+                            {projections.totalConfirmedIncomes > 0 && (
+                                <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm animate-in fade-in slide-in-from-left-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Entradas Realizadas / Reembolsos</label>
+                                    <p className="text-xl font-bold text-emerald-600">{formatCurrency(projections.totalConfirmedIncomes)}</p>
+                                    <div className="mt-2 space-y-1">
+                                        {projections.confirmedIncomes.map(t => (
+                                            <div key={t.id} className="flex justify-between items-center gap-2 text-xs text-slate-500 border-b border-slate-50 pb-1 last:border-0">
+                                                <span className="truncate flex-1 min-w-0" title={t.description}>{t.description}</span>
+                                                <span className="whitespace-nowrap font-medium">{formatCurrency(t.amount)}</span>
                                             </div>
                                         ))}
                                     </div>
