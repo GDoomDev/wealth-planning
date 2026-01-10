@@ -45,11 +45,29 @@ export interface Budget {
   [category: string]: number;
 }
 
+export interface ExtraExpense {
+  id: string;
+  description: string;
+  amount: number;
+  isInstallment?: boolean;
+  installmentsCount?: number;
+  installmentValue?: number;
+  totalValue?: number;
+}
+
+export interface ExtraIncome {
+  id: string;
+  description: string;
+  amount: number;
+}
+
 export interface PlanningProfile {
   id: string;
   month: string; // YYYY-MM
   expectedIncome: number;
   plannedExpenses: Budget;
+  extraExpenses?: ExtraExpense[];
+  extraIncomes?: ExtraIncome[];
 }
 
 export interface InvestmentGoal {

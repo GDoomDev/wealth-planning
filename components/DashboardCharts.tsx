@@ -231,7 +231,7 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
                   <div className="mt-1 space-y-0.5"><p className="text-[10px] text-slate-400 truncate">Meta: {formatCurrency(item.budget)}</p></div>
                 </div>
                 <div className="h-16 w-16 relative flex-shrink-0">
-                  <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={item.chartData} cx="50%" cy="50%" innerRadius={18} outerRadius={25} dataKey="value" startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>{item.chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Pie></PieChart></ResponsiveContainer>
+                  <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={item.chartData} cx="50%" cy="50%" innerRadius={18} outerRadius={25} paddingAngle={5} cornerRadius={4} dataKey="value" startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>{item.chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}</Pie></PieChart></ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className={`text-[9px] font-bold ${item.isOverBudget ? 'text-red-600' : 'text-slate-500'}`}>{item.percentage.toFixed(0)}%</span></div>
                 </div>
               </div>
