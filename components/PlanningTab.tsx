@@ -122,37 +122,37 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
         });
         const totalPendingReimbursements = pendingReimbursements.reduce((sum, t) => sum + t.amount, 0);
 
-        // 3. Parcelas Previstas (Credit Card installments falling in target month)
-        const projectedInstallments = transactions.filter(t => {
-            if (!t.groupId) return false;
+        // 3. Despesas Realizadas (Todas as transações de saída que caem neste mês)
+        // Isso inclui compras parceladas E compras à vista/débito manuais
+        const realizedExpenses = transactions.filter(t => {
             const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
             return effectiveDate.slice(0, 7) === nextMonth && t.type === 'expense';
         });
-        const totalProjectedInstallments = projectedInstallments.reduce((sum, t) => sum + t.amount, 0);
+        const totalRealizedExpenses = realizedExpenses.reduce((sum, t) => sum + t.amount, 0);
 
         // 4. Assinaturas (Recorrentes ativas) - Lógica aprimorada
+        // Filtrar apenas as que AINDA NÃO foram lançadas (para não duplicar com realizedExpenses)
         const activeSubscriptions = subscriptions.filter(sub => {
+            // Primeiro checa validade geral de data
             if (sub.activeUntil && nextMonth > sub.activeUntil.slice(0, 7)) return false;
             if (nextMonth < sub.startDate.slice(0, 7)) return false;
 
             const billingDay = parseInt(sub.startDate.split('-')[2]);
             const [yearStr, monthStr] = nextMonth.split('-');
             const year = parseInt(yearStr);
-            const month = parseInt(monthStr); // 1-12
+            const month = parseInt(monthStr);
 
-            // Verifica o mês atual E o mês anterior (pois cartão pode jogar para frente)
-            // Candidatos: A cobrança que ocorreria no mês alvo, e a do mês anterior.
+            // Candidatos de data
             const candidates = [0, -1].map(offset => {
                 const d = new Date(year, month - 1 + offset, billingDay);
                 return d.toISOString().slice(0, 10);
             });
 
-            return candidates.some(candidateDate => {
-                // Check validity (startDate constraints)
+            // Verifica se alguma data candidata cai no mês alvo
+            const fallsInMonth = candidates.some(candidateDate => {
                 if (candidateDate < sub.startDate) return false;
                 if (sub.activeUntil && candidateDate > sub.activeUntil) return false;
 
-                // Simulate transaction
                 const dummyTx: Transaction = {
                     id: 'temp', amount: sub.amount, category: sub.category, description: sub.name,
                     date: candidateDate, paymentMethod: sub.paymentMethod, type: 'expense'
@@ -160,6 +160,16 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
                 const effectiveDate = getTransactionEffectiveDate(dummyTx, paymentMethods, preferences);
                 return effectiveDate.slice(0, 7) === nextMonth;
             });
+
+            if (!fallsInMonth) return false;
+
+            // Check if already in realizedExpenses (by fuzzy name matching or explicit)
+            // Assumimos que se existe uma despesa com o mesmo nome (ou contendo "Assinatura: Nome"), já foi lançada.
+            const alreadyExists = realizedExpenses.some(t =>
+                t.description.toLowerCase().includes(sub.name.toLowerCase())
+            );
+
+            return !alreadyExists;
         });
         const totalSubscriptions = activeSubscriptions.reduce((sum, s) => sum + s.amount, 0);
 
@@ -178,8 +188,8 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
             projectedSalary,
             pendingReimbursements,
             totalPendingReimbursements,
-            projectedInstallments,
-            totalProjectedInstallments,
+            realizedExpenses,
+            totalRealizedExpenses,
             activeSubscriptions,
             totalSubscriptions,
             confirmedIncomes,
@@ -194,11 +204,11 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
 
     const currentBudget = manualBudget || defaultBudget;
 
-    // O que já está "comprometido" do orçamento (Assinaturas + Parcelas)
+    // O que já está "comprometido" do orçamento (Despesas Realizadas + Assinaturas Pendentes)
     // Agrupado por categoria para mostrar quanto sobra livre
     const committedByCategory = useMemo(() => {
         const acc: Record<string, number> = {};
-        [...projections.projectedInstallments, ...projections.activeSubscriptions.map(s => ({ ...s, type: 'expense' } as any))].forEach(item => {
+        [...projections.realizedExpenses, ...projections.activeSubscriptions.map(s => ({ ...s, type: 'expense' } as any))].forEach(item => {
             acc[item.category] = (acc[item.category] || 0) + item.amount;
         });
         return acc;
@@ -488,7 +498,8 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
                                 const finalVal = Math.max(budgetVal, committedVal);
 
                                 // Detalhes da categoria
-                                const catInstallments = projections.projectedInstallments.filter(t => t.category === cat);
+                                // Detalhes da categoria
+                                const catRealized = projections.realizedExpenses.filter(t => t.category === cat);
                                 const catSubs = projections.activeSubscriptions.filter(s => s.category === cat);
 
                                 return (
@@ -521,9 +532,9 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
                                         )}
 
                                         {/* Lista de Compromissos */}
-                                        {(catInstallments.length > 0 || catSubs.length > 0) && (
+                                        {(catRealized.length > 0 || catSubs.length > 0) && (
                                             <div className="mt-2 pt-2 border-t border-black/5 space-y-1">
-                                                {catInstallments.map(t => (
+                                                {catRealized.map(t => (
                                                     <div key={t.id} className="flex justify-between text-[10px] text-slate-500">
                                                         <span className="truncate">{t.description}</span>
                                                         <span>{formatCurrency(t.amount)}</span>
