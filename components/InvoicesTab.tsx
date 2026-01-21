@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Transaction, PaymentMethod } from '../types';
+import { Transaction, PaymentMethod, Subscription } from '../types';
 import { formatCurrency, formatDateBR } from '../utils/formatters';
 import { getInvoiceForCard } from '../utils/financeUtils';
 import { Receipt, ChevronLeft, ChevronRight, CreditCard, Calendar, DollarSign, FileText } from 'lucide-react';
@@ -7,9 +7,10 @@ import { Receipt, ChevronLeft, ChevronRight, CreditCard, Calendar, DollarSign, F
 interface Props {
     transactions: Transaction[];
     paymentMethods: PaymentMethod[];
+    subscriptions: Subscription[];
 }
 
-const InvoicesTab: React.FC<Props> = ({ transactions, paymentMethods }) => {
+const InvoicesTab: React.FC<Props> = ({ transactions, paymentMethods, subscriptions }) => {
     const today = new Date();
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // 1-12
@@ -35,8 +36,8 @@ const InvoicesTab: React.FC<Props> = ({ transactions, paymentMethods }) => {
 
     const invoiceData = useMemo(() => {
         if (!selectedCard) return null;
-        return getInvoiceForCard(transactions, selectedCard, selectedYear, selectedMonth);
-    }, [transactions, selectedCard, selectedYear, selectedMonth]);
+        return getInvoiceForCard(transactions, subscriptions, selectedCard, selectedYear, selectedMonth);
+    }, [transactions, subscriptions, selectedCard, selectedYear, selectedMonth]);
 
     const handlePreviousMonth = () => {
         if (selectedMonth === 1) {

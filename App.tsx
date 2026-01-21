@@ -698,7 +698,7 @@ const App: React.FC = () => {
             />
           </div>
           {activeTab === 'payment_methods' && <PaymentMethodsTab paymentMethods={paymentMethods} onAdd={pm => setAndSavePaymentMethods(prev => [...prev, pm])} onUpdate={pm => setAndSavePaymentMethods(prev => prev.map(item => item.id === pm.id ? pm : item))} onDelete={handleDeletePaymentMethod} />}
-          {activeTab === 'invoices' && <InvoicesTab transactions={transactions} paymentMethods={paymentMethods} />}
+          {activeTab === 'invoices' && <InvoicesTab transactions={transactions} paymentMethods={paymentMethods} subscriptions={subscriptions} />}
           {activeTab === 'subscriptions' && <SubscriptionsTab subscriptions={subscriptions} transactions={transactions} onAddSubscription={(s) => setAndSaveSubscriptions(prev => [...prev, s])} onDeleteSubscription={handleDeleteSubscription} onUpdateSubscription={(s) => setAndSaveSubscriptions(prev => prev.map(item => item.id === s.id ? s : item))} categories={categories} paymentMethods={paymentMethods} />}
           {activeTab === 'installments' && <InstallmentsTab transactions={transactions} onUpdateGroup={handleUpdateGroup} onAddGroup={handleAddGroup} onAnticipateGroup={handleAnticipateGroup} onDeleteGroup={handleDeleteGroup} categories={categories} paymentMethods={paymentMethods} />}
           {activeTab === 'planning' && <PlanningTab profiles={planningProfiles} transactions={transactions} budget={budget} onSaveProfile={handleSaveProfile} onDeleteProfile={handleDeleteProfile} defaultBudget={budget} draft={planningDraft} onUpdateDraft={setPlanningDraft} subscriptions={subscriptions} paymentMethods={paymentMethods} preferences={preferences} />}

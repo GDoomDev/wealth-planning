@@ -1,4 +1,4 @@
-import { Transaction, PaymentMethod, UserPreferences } from '../types';
+import { Transaction, PaymentMethod, UserPreferences, Subscription } from '../types';
 
 export const getTransactionEffectiveDate = (
     transaction: Transaction,
@@ -99,10 +99,12 @@ export const getInvoicePeriod = (closingDay: number, year: number, month: number
  * @param paymentMethod - The payment method (credit card)
  * @param year - The year of the invoice
  * @param month - The month of the invoice (1-12)
+ * @param subscriptions - All subscriptions
  * @returns Invoice details including transactions and total
  */
 export const getInvoiceForCard = (
     transactions: Transaction[],
+    subscriptions: Subscription[],
     paymentMethod: PaymentMethod,
     year: number,
     month: number
@@ -129,7 +131,64 @@ export const getInvoiceForCard = (
         return t.date >= period.startDate && t.date <= period.endDate;
     });
 
-    const total = invoiceTransactions.reduce((sum, t) => sum + t.amount, 0);
+    // Process Subscriptions
+    const invoiceSubscriptions: Transaction[] = [];
+    subscriptions.forEach(sub => {
+        // Must use this payment method
+        if (sub.paymentMethod !== paymentMethod.name && sub.paymentMethod !== paymentMethod.id) return;
+
+        // Calculate billing date for this month/period
+        // For a subscription starting on 2023-01-15, the billing day is 15.
+        // We need to check if there is a "15th" that falls inside the period.
+
+        const periodStart = new Date(period.startDate + 'T12:00:00');
+        const periodEnd = new Date(period.endDate + 'T12:00:00');
+
+        // Iterate through months covered by period (usually 2 months overlap)
+        // Check potential billing dates in the range
+        const candidates = [
+            new Date(periodStart.getFullYear(), periodStart.getMonth(), parseInt(sub.startDate.split('-')[2])),
+            new Date(periodEnd.getFullYear(), periodEnd.getMonth(), parseInt(sub.startDate.split('-')[2]))
+        ];
+
+        candidates.forEach(billingDate => {
+            // Adjust if day didn't exist in month (e.g. 31st in Feb) - Javascript auto-rolls over, but we might want to clamp or ignore.
+            // Simple approach: The day must match or it moved to next month. 
+            // Let's stick to simple ISO string comparison for range check.
+
+            const billingDateStr = billingDate.toISOString().split('T')[0];
+
+            // Check effective range of subscription
+            if (billingDateStr < sub.startDate) return;
+            if (sub.activeUntil && billingDateStr > sub.activeUntil) return;
+
+            // Check if falls in invoice period
+            if (billingDateStr >= period.startDate && billingDateStr <= period.endDate) {
+                // Check if already manually added
+                const alreadyLaunched = transactions.some(t =>
+                    t.date === billingDateStr &&
+                    (t.description.includes(`Assinatura: ${sub.name}`) || t.description === sub.name) &&
+                    Math.abs(t.amount - sub.amount) < 0.01
+                );
+
+                if (!alreadyLaunched) {
+                    invoiceSubscriptions.push({
+                        id: `sub-${sub.id}-${billingDateStr}`,
+                        amount: sub.amount,
+                        category: sub.category,
+                        paymentMethod: sub.paymentMethod,
+                        type: 'expense',
+                        description: `Assinatura: ${sub.name}`,
+                        date: billingDateStr,
+                        cardName: paymentMethod.name
+                    });
+                }
+            }
+        });
+    });
+
+    const allItems = [...invoiceTransactions, ...invoiceSubscriptions];
+    const total = allItems.reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate due date
     const closingDate = new Date(year, month - 1, paymentMethod.closingDay, 12, 0, 0);
@@ -141,7 +200,7 @@ export const getInvoiceForCard = (
     }
 
     return {
-        transactions: invoiceTransactions.sort((a, b) => b.date.localeCompare(a.date)),
+        transactions: allItems.sort((a, b) => b.date.localeCompare(a.date)),
         total,
         closingDate: closingDate.toISOString().split('T')[0],
         dueDate: dueDate.toISOString().split('T')[0],
