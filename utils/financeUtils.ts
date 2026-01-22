@@ -1,4 +1,4 @@
-import { Transaction, PaymentMethod, UserPreferences } from '../types';
+import { Transaction, PaymentMethod, UserPreferences, Subscription } from '../types';
 
 export const getTransactionEffectiveDate = (
     transaction: Transaction,
@@ -105,7 +105,8 @@ export const getInvoiceForCard = (
     transactions: Transaction[],
     paymentMethod: PaymentMethod,
     year: number,
-    month: number
+    month: number,
+    subscriptions: Subscription[] = []
 ) => {
     if (paymentMethod.type !== 'credit_card' || !paymentMethod.closingDay || !paymentMethod.dueDay) {
         return {
@@ -129,7 +130,69 @@ export const getInvoiceForCard = (
         return t.date >= period.startDate && t.date <= period.endDate;
     });
 
-    const total = invoiceTransactions.reduce((sum, t) => sum + t.amount, 0);
+    // Process subscriptions to find ones that fall into this invoice period
+    const relevantSubscriptions: Transaction[] = [];
+
+    // Get today's date in local time YYYY-MM-DD to convert properly
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('pt-BR').split('/').reverse().join('-'); // YYYY-MM-DD for comparison
+
+    subscriptions.forEach(sub => {
+        // Must be associated with this card (by ID or name to be safe, though usually ID)
+        const isThisCard = sub.paymentMethod === paymentMethod.id || sub.paymentMethod === paymentMethod.name;
+        if (!isThisCard) return;
+
+        // Determine the billing date for this subscription in the current invoice context
+        // We need to check if there is a predicted occurrence of this subscription within [period.startDate, period.endDate]
+
+        const billingDay = parseInt(sub.startDate.split('-')[2]);
+
+        // Iterate through months covered by the period (usually 2 months involved in an invoice period)
+        const start = new Date(period.startDate);
+        const end = new Date(period.endDate);
+
+        // We check potential dates year-month based on range
+        // Just a simple iteration over the days in the range is safer or we can construct relevant dates
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            if (d.getDate() === billingDay) {
+                // Found a matching day!
+                const candidateDate = d.toISOString().split('T')[0];
+
+                // Check if the subscription date is in the future relative to today
+                if (candidateDate > todayStr) {
+                    continue;
+                }
+
+                // Check if subscription was active
+                if (candidateDate >= sub.startDate && (!sub.activeUntil || candidateDate <= sub.activeUntil)) {
+                    // Check for duplicates (manual launch)
+                    // We match by description roughly
+                    const alreadyLaunched = invoiceTransactions.some(t =>
+                        t.description.toLowerCase().includes(sub.name.toLowerCase()) &&
+                        Math.abs(t.amount - sub.amount) < 0.01 // Optional: checking amount too
+                    );
+
+                    if (!alreadyLaunched) {
+                        relevantSubscriptions.push({
+                            id: `sub-${sub.id}-${candidateDate}`,
+                            description: `Assinatura: ${sub.name}`,
+                            amount: sub.amount,
+                            category: sub.category,
+                            paymentMethod: sub.paymentMethod,
+                            date: candidateDate,
+                            type: 'expense',
+                            cardName: paymentMethod.name,
+                            isReimbursable: sub.isReimbursable,
+                            debtorName: sub.debtorName
+                        });
+                    }
+                }
+            }
+        }
+    });
+
+    const allTransactions = [...invoiceTransactions, ...relevantSubscriptions].sort((a, b) => b.date.localeCompare(a.date));
+    const total = allTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     // Calculate due date
     const closingDate = new Date(year, month - 1, paymentMethod.closingDay, 12, 0, 0);
@@ -141,7 +204,7 @@ export const getInvoiceForCard = (
     }
 
     return {
-        transactions: invoiceTransactions.sort((a, b) => b.date.localeCompare(a.date)),
+        transactions: allTransactions,
         total,
         closingDate: closingDate.toISOString().split('T')[0],
         dueDate: dueDate.toISOString().split('T')[0],
