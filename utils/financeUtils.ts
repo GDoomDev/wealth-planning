@@ -164,12 +164,29 @@ export const getInvoiceForCard = (
 
             // Check if falls in invoice period
             if (billingDateStr >= period.startDate && billingDateStr <= period.endDate) {
-                // Check if already manually added
-                const alreadyLaunched = transactions.some(t =>
-                    t.date === billingDateStr &&
-                    (t.description.includes(`Assinatura: ${sub.name}`) || t.description === sub.name) &&
-                    Math.abs(t.amount - sub.amount) < 0.01
-                );
+                // Check if already manually added with some flexibility
+                const alreadyLaunched = transactions.some(t => {
+                    // 1. Must match amount
+                    if (Math.abs(t.amount - sub.amount) >= 0.05) return false;
+
+                    // 2. Must match description (flexible)
+                    const normalizedTxDesc = t.description.toLowerCase();
+                    const normalizedSubName = sub.name.toLowerCase();
+                    const matchesName = normalizedTxDesc.includes(normalizedSubName) ||
+                        normalizedTxDesc.includes(`assinatura: ${normalizedSubName}`) ||
+                        normalizedSubName.includes(normalizedTxDesc);
+
+                    if (!matchesName) return false;
+
+                    // 3. Date flexibility (+/- 3 days)
+                    // If the manual transaction is within 3 days of the expected billing date, count it.
+                    const txDateObj = new Date(t.date + 'T12:00:00');
+                    const billingDateObj = new Date(billingDateStr + 'T12:00:00');
+                    const diffTime = Math.abs(txDateObj.getTime() - billingDateObj.getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    return diffDays <= 3;
+                });
 
                 if (!alreadyLaunched) {
                     invoiceSubscriptions.push({
