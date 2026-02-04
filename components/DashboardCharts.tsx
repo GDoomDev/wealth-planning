@@ -111,7 +111,7 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
 
   const budgetVsActual = useMemo(() => {
     const nowMonthStr = new Date().toISOString().slice(0, 7);
-    const currentMonthExpenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => {
+    const currentMonthExpenses = monthlyTransactions.filter(t => t.type === 'expense' || t.type === 'investment').reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
@@ -152,7 +152,7 @@ const DashboardCharts: React.FC<Props> = ({ transactions, budget, paymentMethods
 
       // Extract details for the "Secret Menu"
       const details = [
-        ...monthlyTransactions.filter(t => t.category === category && t.type === 'expense').map(t => ({
+        ...monthlyTransactions.filter(t => t.category === category && (t.type === 'expense' || t.type === 'investment')).map(t => ({
           id: t.id,
           description: t.description,
           amount: t.amount,

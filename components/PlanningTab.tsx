@@ -126,7 +126,7 @@ const PlanningTab: React.FC<Props> = ({ profiles, transactions, budget, onSavePr
         // Isso inclui compras parceladas E compras à vista/débito manuais
         const realizedExpenses = transactions.filter(t => {
             const effectiveDate = getTransactionEffectiveDate(t, paymentMethods, preferences);
-            return effectiveDate.slice(0, 7) === nextMonth && t.type === 'expense';
+            return effectiveDate.slice(0, 7) === nextMonth && (t.type === 'expense' || t.type === 'investment');
         });
         const totalRealizedExpenses = realizedExpenses.reduce((sum, t) => sum + t.amount, 0);
 
